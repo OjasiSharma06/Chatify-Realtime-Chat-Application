@@ -50,7 +50,7 @@
     .msg-sender { font-size: 0.75rem; opacity: 0.7; margin-bottom: 4px; display: block; }
     .msg-time { font-size: 0.7rem; opacity: 0.6; margin-top: 6px; display: block; text-align: right; }
     
-    .chat-input-area { padding: 20px; background: rgba(0,0,0,0.3); display: none; gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .chat-input-area { padding: 20px; background: rgba(0,0,0,0.3); display: none; gap: 10px; border-top: 1px solid rgba(255,255,255,0.05); align-items: center; }
     .chat-input { flex: 1; padding: 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: white; font-family: inherit; }
   </style>
 </head>
@@ -61,13 +61,16 @@
 
 <div class="app-container">
   <div class="header">
-    <h2><span id="my-username">Loading...</span>'s Chatify</h2>
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <input type="file" id="avatar-input" accept="image/*" style="display: none;">
+      <img id="my-avatar" src="https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png" style="width: 45px; height: 45px; border-radius: 50%; object-fit: cover; cursor: pointer; border: 2px solid var(--accent);" title="Click to change profile picture">
+      <h2><span id="my-username">Loading...</span>'s Chatify</h2>
+    </div>
     <button class="btn-logout" id="btn-logout">Logout</button>
   </div>
 
   <div class="app-layout">
     
-    <!-- LEFT: Sidebar -->
     <div class="sidebar">
       <div class="sidebar-header">
         <input type="text" id="search-input" class="form-input" placeholder="Search to add friends..." style="padding: 10px; font-size: 0.9rem;" autocomplete="off">
@@ -78,17 +81,18 @@
       </div>
     </div>
 
-    <!-- RIGHT: Main Chat Area -->
     <div class="main-chat" id="main-chat">
-      <!-- Empty State -->
       <div class="empty-chat" id="empty-chat">Select a friend to start chatting</div>
       
-      <!-- Active Chat UI -->
       <div class="chat-header" id="chat-header">
         <h3>💬 Chatting with <span id="current-friend-name" style="color: var(--accent);"></span></h3>
       </div>
       <div class="chat-messages" id="messages"></div>
+      
       <div class="chat-input-area" id="chat-input-area">
+        <input type="file" id="image-upload" accept="image/*" style="display: none;">
+        <button id="btn-camera" class="btn-small" style="background: rgba(255,255,255,0.2); font-size: 1.2rem; padding: 10px 14px;" title="Send Image">📷</button>
+        
         <input type="text" id="msg-input" class="chat-input" placeholder="Type a message..." autocomplete="off">
         <button id="btn-send" class="btn-submit" style="width: auto; padding: 0 24px;">Send</button>
       </div>
@@ -99,7 +103,6 @@
 
 <div class="toast" id="toast"></div>
 
-<!-- Load Socket.io -->
 <script src="/socket.io/socket.io.js"></script>
 <script>
   const socket = io();
@@ -129,6 +132,11 @@
 
       myName = d.user.username;
       document.getElementById('my-username').textContent = myName;
+      
+      // Load Profile Picture
+      if (d.user.profilePic) {
+        document.getElementById('my-avatar').src = d.user.profilePic;
+      }
 
       // Tell the server we are online for the very first time
       if (socket.connected) {
@@ -140,12 +148,8 @@
   }
 
   socket.on('connect', () => {
-    // If myName already exists, it means the server restarted and we are reconnecting!
     if (myName) {
-      // 1. Tell the server we are still online
       socket.emit('register-presence', myName);
-      
-      // 2. Put us back into the chat room we were looking at
       if (activeRoomCode) {
         socket.emit('join-room', { code: activeRoomCode, name: myName });
       }
@@ -162,7 +166,6 @@
     if (online) onlineUsers.add(username);
     else onlineUsers.delete(username);
     
-    // Update the specific friend's dot in the UI
     const dot = document.getElementById(`status-${username}`);
     if (dot) {
       dot.className = `status-dot ${online ? 'status-online' : 'status-offline'}`;
@@ -177,10 +180,11 @@
       return;
     }
 
+    // FIXED: Using f.prismaId instead of f._id
     container.innerHTML = friends.map(f => {
       const isOnline = onlineUsers.has(f.username);
       return `
-      <div class="friend-item" id="friend-box-${f._id}" onclick="openChat('${f._id}', '${f.username}')">
+      <div class="friend-item" id="friend-box-${f.prismaId}" onclick="openChat('${f.prismaId}', '${f.username}')">
         <div class="status-dot ${isOnline ? 'status-online' : 'status-offline'}" id="status-${f.username}"></div>
         <span style="font-weight: 600;">${f.username}</span>
       </div>
@@ -195,15 +199,13 @@
     });
   }
 
-  // ── 4. Open a Chat (The Magic Switch) ──
+  // ── 4. Open a Chat ──
   async function openChat(friendId, friendName) {
-    // UI Highlights
     document.querySelectorAll('.friend-item').forEach(el => el.classList.remove('active'));
     document.getElementById(`friend-box-${friendId}`).classList.add('active');
     document.getElementById('current-friend-name').textContent = friendName;
 
     try {
-      // Get the unique room code for this friend pair
       const r = await fetch('/api/rooms/dm', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -212,7 +214,6 @@
       const d = await r.json();
       
       if (d.success) {
-        // Tell Socket.io to switch to this room!
         socket.emit('join-room', { code: d.code, name: myName });
       }
     } catch (err) { toast('Error starting chat.'); }
@@ -225,8 +226,13 @@
     const isMine = data.sender === myName;
     const div = document.createElement('div');
     div.className = `msg ${isMine ? 'msg-mine' : 'msg-theirs'}`;
+    
+    // Render image if it exists!
+    const imageHTML = data.imageUrl ? `<img src="${data.imageUrl}" style="max-width: 100%; border-radius: 8px; margin-bottom: 5px; display: block;">` : '';
+
     div.innerHTML = `
       ${!isMine ? `<span class="msg-sender">${data.sender}</span>` : ''}
+      ${imageHTML}
       ${data.text}
       <span class="msg-time">${data.time || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
     `;
@@ -237,13 +243,11 @@
   socket.on('room-joined', (data) => {
     activeRoomCode = data.code;
     
-    // Reveal the Chat UI
     emptyChatDiv.style.display = 'none';
     chatHeader.style.display = 'block';
     messagesDiv.style.display = 'flex';
     chatInputArea.style.display = 'flex';
     
-    // Clear old messages and load history
     messagesDiv.innerHTML = '';
     if (data.history && data.history.length > 0) {
       data.history.forEach(m => appendMessage(m));
@@ -260,7 +264,7 @@
     const text = msgInput.value.trim();
     if (!text) return;
     
-    socket.emit('send-message', { text });
+    socket.emit('send-message', { text, imageUrl: null });
     msgInput.value = '';
     msgInput.focus();
   };
@@ -268,7 +272,89 @@
   document.getElementById('btn-send').addEventListener('click', sendMessage);
   msgInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
 
-  // ── 7. Search & Add Friend (Unchanged Logic) ──
+  // ── 7. Image Upload Logic (Chat Photos) ──
+  const imageInput = document.getElementById('image-upload');
+  
+  document.getElementById('btn-camera').addEventListener('click', () => {
+    imageInput.click();
+  });
+
+  imageInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    toast('Uploading image...', 'success');
+    
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const r = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const d = await r.json();
+
+      if (d.success) {
+        socket.emit('send-message', { text: '', imageUrl: d.url });
+      } else {
+        toast('Failed to upload image.');
+      }
+    } catch (err) {
+      toast('Error uploading image.');
+    }
+    
+    imageInput.value = ''; 
+  });
+
+  // ── 8. Profile Photo Upload Logic ──
+  const avatarImg = document.getElementById('my-avatar');
+  const avatarInput = document.getElementById('avatar-input');
+
+  avatarImg.addEventListener('click', () => {
+    avatarInput.click();
+  });
+
+  avatarInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    toast('Uploading profile picture...', 'success');
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    try {
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData
+      });
+      const uploadData = await uploadResponse.json();
+
+      if (uploadData.success) {
+        const updateResponse = await fetch('/api/users/update-avatar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: uploadData.url })
+        });
+        const updateData = await updateResponse.json();
+
+        if (updateData.success) {
+          avatarImg.src = uploadData.url;
+          toast('Profile picture updated!', 'success');
+        } else {
+          toast('Failed to save profile picture.');
+        }
+      } else {
+        toast('Failed to upload image.');
+      }
+    } catch (err) {
+      toast('Error uploading profile picture.');
+    }
+    avatarInput.value = ''; 
+  });
+
+  // ── 9. Search & Add Friend ──
   document.getElementById('search-input').addEventListener('input', async (e) => {
     const q = e.target.value.trim();
     const container = document.getElementById('search-results');
@@ -276,10 +362,12 @@
     try {
       const r = await fetch(`/api/users/search?q=${q}`);
       const d = await r.json();
+      
+      // FIXED: Using u.id instead of u._id
       container.innerHTML = d.users.map(u => `
         <div style="display:flex; justify-content:space-between; margin-bottom:5px; align-items:center;">
           <span style="color:white; font-size:0.9rem;">@${u.username}</span>
-          <button class="btn-small" onclick="addFriend('${u._id}')">Add</button>
+          <button class="btn-small" onclick="addFriend('${u.id}')">Add</button>
         </div>
       `).join('');
     } catch (err) {}
