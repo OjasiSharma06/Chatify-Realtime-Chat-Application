@@ -8,6 +8,8 @@ const requireAuth = require('../middleware/auth');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+const MongoUser = require('../models/User');
+
 
 // ─────────────────────────────────────────────
 // GET CURRENT USER
