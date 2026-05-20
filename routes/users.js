@@ -131,6 +131,9 @@ router.get('/search', requireAuth, async (req, res) => {
 // ─────────────────────────────────────────────
 // ADD FRIEND (With Auto-Repair Sync)
 // ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
+// ADD FRIEND (With Auto-Repair & Safety Nets)
+// ─────────────────────────────────────────────
 router.post('/add-friend', requireAuth, async (req, res) => {
   try {
     const friendId = parseInt(req.body.friendId);
@@ -141,12 +144,23 @@ router.post('/add-friend', requireAuth, async (req, res) => {
     }
 
     // 1. Find YOUR mirror profile in MongoDB
-    const me = await MongoUser.findOne({ prismaId: myId });
+    let me = await MongoUser.findOne({ prismaId: myId });
+    
     if (!me) {
       return res.status(404).json({ success: false, message: 'Your Mongo profile is missing.' });
     }
 
-    // 2. Check if the friend exists in MongoDB
+    // SAFETY NET: Create friends array if it is missing from an old database record
+    if (!me.friends) {
+      me.friends = [];
+    }
+
+    // 2. Prevent duplicate friends
+    if (me.friends.includes(friendId)) {
+      return res.status(400).json({ success: false, message: 'Already friends.' });
+    }
+
+    // 3. Check if the friend exists in MongoDB
     let friendMongo = await MongoUser.findOne({ prismaId: friendId });
     
     // 🔧 AUTO-REPAIR: If friend is a ghost user (exists in Prisma but missing in Mongo)
@@ -165,14 +179,10 @@ router.post('/add-friend', requireAuth, async (req, res) => {
       // Recreate their missing mirror profile instantly
       friendMongo = new MongoUser({
         prismaId: friendPrisma.id,
-        username: friendPrisma.username
+        username: friendPrisma.username,
+        friends: [] // Give them a blank friends array too!
       });
       await friendMongo.save();
-    }
-
-    // 3. Prevent duplicate friends
-    if (me.friends.includes(friendId)) {
-      return res.status(400).json({ success: false, message: 'Already friends.' });
     }
 
     // 4. Save the friend connection safely
