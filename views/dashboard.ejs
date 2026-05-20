@@ -139,9 +139,7 @@
       }
 
       // Tell the server we are online for the very first time
-      if (socket.connected) {
-        socket.emit('register-presence', myName);
-      }
+      socket.emit('register-presence', myName);
       
       renderFriends(d.user.friends);
     } catch (err) { toast('Error loading dashboard'); }
@@ -158,9 +156,9 @@
 
   // ── 2. Socket: Presence Listeners ──
   socket.on('online-users-list', (users) => {
-    onlineUsers = new Set(users);
-    updateAllFriendStatuses();
-  });
+  onlineUsers = new Set(users);
+  updateAllFriendStatuses(); // already exists — this is correct, keep it
+});
 
   socket.on('user-status', ({ username, online }) => {
     if (online) onlineUsers.add(username);

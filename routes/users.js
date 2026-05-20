@@ -136,7 +136,10 @@ router.get('/search', requireAuth, async (req, res) => {
 
 router.post('/add-friend', requireAuth, async (req, res) => {
   try {
-    const friendId = parseInt(req.body.friendId);
+    const friendId = Number(req.body.friendId);
+if (isNaN(friendId) || friendId <= 0) {
+  return res.status(400).json({ success: false, message: 'Invalid friend ID.' });
+}
     const myId = req.session.userId;
 
     if (!friendId) {
@@ -194,6 +197,27 @@ router.post('/add-friend', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Add Friend Error:', err);
     res.status(500).json({ success: false, message: 'Could not add friend.' });
+  }
+});
+
+router.post('/update-avatar', requireAuth, async (req, res) => {
+  try {
+    const { imageUrl } = req.body;
+    const myId = req.session.userId;
+
+    if (!imageUrl) {
+      return res.status(400).json({ success: false, message: 'No image URL provided.' });
+    }
+
+    await MongoUser.findOneAndUpdate(
+      { prismaId: myId },
+      { profilePic: imageUrl }
+    );
+
+    res.json({ success: true, message: 'Avatar updated.' });
+  } catch (err) {
+    console.error('Update avatar error:', err);
+    res.status(500).json({ success: false, message: 'Server error.' });
   }
 });
 

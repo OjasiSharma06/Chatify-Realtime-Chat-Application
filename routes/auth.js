@@ -6,6 +6,8 @@ const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
+const User = require('../models/User');
+
 // ── REGISTER ROUTE ──────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
