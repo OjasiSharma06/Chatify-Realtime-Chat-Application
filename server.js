@@ -26,6 +26,7 @@ const authRoutes    = require('./routes/auth');
 const sessionRoutes = require('./routes/session');
 const userRoutes    = require('./routes/users');
 const requireAuth   = require('./middleware/auth');
+const uploadRoutes = require('./routes/upload');
 
 const app    = express();
 const server = http.createServer(app);
@@ -59,6 +60,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+
 app.use(session({
   secret:            process.env.SESSION_SECRET || 'chatify-secret-key',
   resave:            false,
@@ -86,7 +88,8 @@ app.use((req, res, next) => {
 app.use('/api/rooms',   roomRoutes);
 app.use('/api/auth',    authRoutes);
 app.use('/api/session', sessionRoutes);
-app.use('/api/users',   userRoutes); // <-- Moved to safety!
+app.use('/api/users',   userRoutes); 
+app.use('/api/upload', uploadRoutes);// <-- Moved to safety!
 
 
 app.get('/', (req, res) => {
