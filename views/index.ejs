@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chatify — Login & Register</title>
+
+  <link rel="stylesheet" href="/css/style.css"/>
+</head>
+<body>
+
+<div class="glow-blob glow-blob-1"></div>
+<div class="glow-blob glow-blob-2"></div>
+
+<div class="landing">
+
+  <!-- ───────── BRAND ───────── -->
+  <div class="brand">
+    <div class="logo">
+      <div class="logo-icon">💬</div>
+      <span class="logo-name">Chatify</span>
+    </div>
+
+    <h1 class="brand-headline">
+      Connect directly.<br/>
+      <em>Chat with your friends.</em>
+    </h1>
+
+    <p class="brand-sub">
+      Create an account to build your friends list and start secure chats.
+    </p>
+  </div>
+
+  <!-- ───────── FORM PANEL ───────── -->
+  <div class="form-panel">
+
+    <div class="form-card">
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="login">
+          Login
+        </button>
+
+        <button class="tab" data-tab="register">
+          Register
+        </button>
+      </div>
+
+      <!-- ───────── LOGIN ───────── -->
+      <div class="tab-content active" id="tab-login">
+
+        <p class="form-hint">
+          Welcome back! Login to continue chatting.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label">Username</label>
+
+          <input
+            class="form-input"
+            id="l-username"
+            type="text"
+            placeholder="Enter username"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password</label>
+
+          <input
+            class="form-input"
+            id="l-password"
+            type="password"
+            placeholder="Enter password"
+            autocomplete="off"
+          />
+        </div>
+
+        <button class="btn-submit" id="btn-login">
+          Login →
+        </button>
+
+      </div>
+
+      <!-- ───────── REGISTER ───────── -->
+      <div class="tab-content" id="tab-register">
+
+        <p class="form-hint">
+          Create your Chatify account.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label">Username</label>
+
+          <input
+            class="form-input"
+            id="r-username"
+            type="text"
+            placeholder="Choose username"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Email</label>
+
+          <input
+            class="form-input"
+            id="r-email"
+            type="email"
+            placeholder="Enter email"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Password</label>
+
+          <input
+            class="form-input"
+            id="r-password"
+            type="password"
+            placeholder="Minimum 6 characters"
+            autocomplete="off"
+          />
+        </div>
+
+        <button class="btn-submit" id="btn-register">
+          Create Account →
+        </button>
+
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+
+  // ───────── TAB SWITCHING ─────────
+  document.querySelectorAll('.tab').forEach(tab => {
+
+    tab.addEventListener('click', () => {
+
+      document
+        .querySelectorAll('.tab')
+        .forEach(t => t.classList.remove('active'));
+
+      document
+        .querySelectorAll('.tab-content')
+        .forEach(c => c.classList.remove('active'));
+
+      tab.classList.add('active');
+
+      document
+        .getElementById('tab-' + tab.dataset.tab)
+        .classList.add('active');
+
+    });
+
+  });
+
+
+  // ───────── TOAST FUNCTION ─────────
+  function toast(message, type = 'error') {
+
+    const el = document.getElementById('toast');
+
+    el.textContent = message;
+
+    el.className = `toast ${type} show`;
+
+    setTimeout(() => {
+      el.classList.remove('show');
+    }, 3000);
+
+  }
+
+
+  // ───────── LOGIN ─────────
+  document
+    .getElementById('btn-login')
+    .addEventListener('click', async () => {
+
+      const username = document
+        .getElementById('l-username')
+        .value
+        .trim();
+
+      const password = document
+        .getElementById('l-password')
+        .value
+        .trim();
+
+      if (!username || !password) {
+        return toast('Please fill all login fields.');
+      }
+
+      try {
+
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+
+          headers: {
+            'Content-Type': 'application/json'
+          },
+
+          body: JSON.stringify({
+            username,
+            password
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+
+          toast('Login successful!', 'success');
+
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 800);
+
+        } else {
+
+          toast(data.message || 'Login failed.');
+
+        }
+
+      } catch (err) {
+
+        toast('Connection error.');
+
+      }
+
+    });
+
+
+  // ───────── REGISTER ─────────
+  document
+    .getElementById('btn-register')
+    .addEventListener('click', async () => {
+
+      const username = document
+        .getElementById('r-username')
+        .value
+        .trim();
+
+      const email = document
+        .getElementById('r-email')
+        .value
+        .trim();
+
+      const password = document
+        .getElementById('r-password')
+        .value
+        .trim();
+
+      if (!username || !email || !password) {
+        return toast('Please fill all registration fields.');
+      }
+
+      if (password.length < 6) {
+        return toast('Password must be at least 6 characters.');
+      }
+
+      try {
+
+        const response = await fetch('/api/auth/register', {
+
+          method: 'POST',
+
+          headers: {
+            'Content-Type': 'application/json'
+          },
+
+          body: JSON.stringify({
+            username,
+            email,
+            password
+          })
+
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+
+          toast('Account created!', 'success');
+
+          setTimeout(() => {
+            window.location.href = '/dashboard';
+          }, 800);
+
+        } else {
+
+          toast(data.message || 'Registration failed.');
+
+        }
+
+      } catch (err) {
+
+        toast('Connection error.');
+
+      }
+
+    });
+
+</script>
+
+</body>
+</html>
