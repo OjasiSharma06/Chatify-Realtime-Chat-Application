@@ -14,6 +14,9 @@ const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 
 
+
+
+
 const Room   = require('./models/Room');
 const User   = require('./models/User');
 
@@ -35,6 +38,10 @@ app.set('views', path.join(__dirname, 'views'));
 const LOGS_DIR      = path.join(__dirname, 'logs');
 const CHAT_LOG      = path.join(LOGS_DIR, 'chats.log');
 const ROOM_LOG      = path.join(LOGS_DIR, 'rooms.log');
+// 🔥 ADD THESE 3 LINES TO FIX THE RENDER ERROR 🔥
+if (!fs.existsSync(LOGS_DIR)) {
+  fs.mkdirSync(LOGS_DIR, { recursive: true });
+}
 
 const dns = require('dns');
 dns.setDefaultResultOrder('ipv4first');

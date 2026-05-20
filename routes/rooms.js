@@ -7,6 +7,9 @@ const path       = require('path');
 const LOGS_DIR = path.join(__dirname, '../logs');
 const CHAT_LOG = path.join(LOGS_DIR, 'chats.log');
 const ROOM_LOG = path.join(LOGS_DIR, 'rooms.log');
+if (!fs.existsSync(LOGS_DIR)) {
+  fs.mkdirSync(LOGS_DIR, { recursive: true });
+}
 const requireAuth = require('../middleware/auth');
 
 function appendLog(file, msg) {
