@@ -113,8 +113,19 @@ req.session.save(err => {
 
 // ── LOGOUT ROUTE ────────────────────────────────────────────
 router.post('/logout', (req, res) => {
-  req.session.destroy();
-  res.json({ success: true, message: 'Logged out successfully' });
+  // Pass a callback function to wait for the database to finish
+  req.session.destroy((err) => {
+    if (err) {
+      console.error('Logout Error:', err);
+      return res.status(500).json({ success: false, message: 'Could not log out.' });
+    }
+    
+    // Clear the session cookie from the user's browser
+    res.clearCookie('connect.sid'); 
+    
+    // Now it is safe to send the response!
+    return res.json({ success: true, message: 'Logged out successfully' });
+  });
 });
 
 module.exports = router;

@@ -134,16 +134,6 @@ router.get('/search', requireAuth, async (req, res) => {
 });
 
 
-// ─────────────────────────────────────────────
-// ADD FRIEND
-// ─────────────────────────────────────────────
-
-// ─────────────────────────────────────────────
-// ADD FRIEND (With Auto-Repair Sync)
-// ─────────────────────────────────────────────
-// ─────────────────────────────────────────────
-// ADD FRIEND (With Auto-Repair & Safety Nets)
-// ─────────────────────────────────────────────
 router.post('/add-friend', requireAuth, async (req, res) => {
   try {
     const friendId = parseInt(req.body.friendId);
