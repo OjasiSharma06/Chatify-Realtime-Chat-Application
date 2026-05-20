@@ -14,51 +14,61 @@ const MongoUser = require('../models/User');
 // ─────────────────────────────────────────────
 // GET CURRENT USER
 // ─────────────────────────────────────────────
-
+// ─────────────────────────────────────────────
+// GET CURRENT USER (Merged Prisma + Mongo)
+// ─────────────────────────────────────────────
 router.get('/me', requireAuth, async (req, res) => {
-
   try {
+    const myId = req.session.userId;
 
-    const user = await prisma.user.findUnique({
-
-      where: {
-        id: req.session.userId
-      },
-
-      select: {
-        id: true,
-        username: true,
-        email: true,
-        createdAt: true
-      }
-
+    // 1. Get base user from Prisma
+    const pUser = await prisma.user.findUnique({
+      where: { id: myId },
+      select: { id: true, username: true }
     });
 
-    if (!user) {
-
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-
+    if (!pUser) {
+      return res.status(404).json({ success: false, message: 'User not found in Prisma' });
     }
 
+    // 2. Get friends and avatar from Mongo
+    let mUser = await MongoUser.findOne({ prismaId: myId });
+    
+    // Auto-repair missing mongo mirror profile on login
+    if (!mUser) {
+      mUser = new MongoUser({ prismaId: myId, username: pUser.username, friends: [] });
+      await mUser.save();
+    }
+
+    // Safety net for old accounts missing the array
+    if (!mUser.friends) mUser.friends = [];
+
+    // 3. Translate Friend IDs into Usernames for the frontend
+    const friendDetails = await prisma.user.findMany({
+      where: { id: { in: mUser.friends } },
+      select: { id: true, username: true }
+    });
+
+    const mappedFriends = friendDetails.map(f => ({
+      prismaId: f.id,
+      username: f.username
+    }));
+
+    // 4. Send the perfectly merged data back
     res.json({
       success: true,
-      user
+      user: {
+        username: pUser.username,
+        prismaId: pUser.id,
+        profilePic: mUser.profilePic || 'https://abs.twimg.com/sticky/default_profile_images/default_profile_400x400.png',
+        friends: mappedFriends
+      }
     });
 
   } catch (err) {
-
-    console.error(err);
-
-    res.status(500).json({
-      success: false,
-      message: 'Server error.'
-    });
-
+    console.error('ME Route Error:', err);
+    res.status(500).json({ success: false, message: 'Server error.' });
   }
-
 });
 
 
